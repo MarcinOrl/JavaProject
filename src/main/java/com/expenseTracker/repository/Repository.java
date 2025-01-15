@@ -6,4 +6,5 @@ public interface Repository<T> {
     void add(T item);
     List<T> getAll();
     void delete(T item);
+    void clear();
 }

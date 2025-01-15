@@ -1,6 +1,7 @@
 package main.java.com.expenseTracker.model;
 
 import java.time.LocalDate;
+import java.util.Locale;
 
 public class Expense {
     private String name;
@@ -44,11 +45,8 @@ public class Expense {
     }
 
     @Override public String toString() {
-        return "Expense{" +
-                "name='" + name + '\'' +
-                ", amount=" + amount +
-                ", category=" + category + '\'' +
-                ", date=" + date +
-                '}';
+        return String.format(Locale.US, "Expense{name='%s', amount=%.2f, category='%s', date=%s}",
+                name, amount, category, date
+        );
     }
 }
