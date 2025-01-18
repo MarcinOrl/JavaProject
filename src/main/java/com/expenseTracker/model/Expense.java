@@ -2,11 +2,20 @@ package main.java.com.expenseTracker.model;
 
 import java.time.LocalDate;
 import java.util.Locale;
+import main.java.com.expenseTracker.util.NotNull;
 
 public class Expense {
+
+    @NotNull(message = "Name cannot be null or empty")
     private String name;
-    private double amount;
+
+    @NotNull(message = "Amount cannot be null or zero")
+    private Double amount;
+
+    @NotNull(message = "Category cannot be null or empty")
     private String category;
+
+    @NotNull(message = "Date cannot be null")
     private LocalDate date;
 
     public Expense(String name, double amount, String category, LocalDate date) {
