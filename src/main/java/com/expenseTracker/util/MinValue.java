@@ -7,6 +7,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface NotNull {
-    String message() default "This field cannot be null or empty.";
+public @interface MinValue {
+    double value();
+    String message() default "Value is below the minimum.";
 }

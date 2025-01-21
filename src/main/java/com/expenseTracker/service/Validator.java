@@ -1,29 +1,45 @@
 package main.java.com.expenseTracker.service;
 
 import main.java.com.expenseTracker.util.NotNull;
-import java.lang.reflect.*;
+import main.java.com.expenseTracker.util.MinValue;
+import main.java.com.expenseTracker.util.ValidCategory;
+import java.lang.reflect.Field;
 
 public class Validator {
-    public static void validateNotNull(Object obj) throws IllegalAccessException {
+    public static void validate(Object obj) throws IllegalAccessException {
         Field[] fields = obj.getClass().getDeclaredFields();
         for (Field field : fields) {
+            field.setAccessible(true);
+
+            // Sprawdzanie @NotNull
             if (field.isAnnotationPresent(NotNull.class)) {
-                field.setAccessible(true);
-                Object value = field.get(obj);
-
-                // Sprawdzanie, czy pole jest null
-                if (value == null) {
+                if (field.get(obj) == null || field.get(obj).toString().isEmpty()) {
                     throw new IllegalArgumentException(field.getAnnotation(NotNull.class).message());
                 }
+            }
 
-                // Dodatkowa walidacja dla liczb
-                if (value instanceof Number && ((Number) value).doubleValue() == 0) {
-                    throw new IllegalArgumentException(field.getAnnotation(NotNull.class).message());
+            // Sprawdzanie @MinValue
+            if (field.isAnnotationPresent(MinValue.class)) {
+                double value = (double) field.get(obj);
+                MinValue minValue = field.getAnnotation(MinValue.class);
+                if (value < minValue.value()) {
+                    throw new IllegalArgumentException(minValue.message());
                 }
+            }
 
-                // Dodatkowa walidacja dla String
-                if (value instanceof String && ((String) value).isEmpty()) {
-                    throw new IllegalArgumentException(field.getAnnotation(NotNull.class).message());
+            // Sprawdzanie @ValidCategory
+            if (field.isAnnotationPresent(ValidCategory.class)) {
+                String string = (String) field.get(obj);
+                ValidCategory validCategory = field.getAnnotation(ValidCategory.class);
+                boolean isValid = false;
+                for (String category : validCategory.allowedCategories()) {
+                    if (category.equals(string)) {
+                        isValid = true;
+                        break;
+                    }
+                }
+                if (!isValid) {
+                    throw new IllegalArgumentException(validCategory.message());
                 }
             }
         }

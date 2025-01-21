@@ -1,18 +1,21 @@
 package main.java.com.expenseTracker.model;
 
+import main.java.com.expenseTracker.util.MinValue;
+import main.java.com.expenseTracker.util.NotNull;
+import main.java.com.expenseTracker.util.ValidCategory;
+
 import java.time.LocalDate;
 import java.util.Locale;
-import main.java.com.expenseTracker.util.NotNull;
 
 public class Expense {
 
     @NotNull(message = "Name cannot be null or empty")
     private String name;
 
-    @NotNull(message = "Amount cannot be null or zero")
+    @MinValue(value = 0.01, message = "Amount must be greater than 0.")
     private Double amount;
 
-    @NotNull(message = "Category cannot be null or empty")
+    @ValidCategory(allowedCategories = {"Food & Drinks", "Electronics", "Transport", "Entertainment"}, message = "Invalid category.")
     private String category;
 
     @NotNull(message = "Date cannot be null")
@@ -53,7 +56,8 @@ public class Expense {
         this.date = date;
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
         return String.format(Locale.US, "Expense{name='%s', amount=%.2f, category='%s', date=%s}",
                 name, amount, category, date
         );
