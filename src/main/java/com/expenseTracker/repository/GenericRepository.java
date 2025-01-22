@@ -1,12 +1,7 @@
 package main.java.com.expenseTracker.repository;
 
-import main.java.com.expenseTracker.model.Expense;
-
-import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.time.LocalDate;
-import java.util.Locale;
 
 public class GenericRepository<T> implements Repository<T> {
     private final List<T> items = new ArrayList<>();
