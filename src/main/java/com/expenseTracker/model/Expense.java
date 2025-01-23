@@ -1,5 +1,6 @@
 package main.java.com.expenseTracker.model;
 
+import main.java.com.expenseTracker.util.MaxDate;
 import main.java.com.expenseTracker.util.MinValue;
 import main.java.com.expenseTracker.util.NotNull;
 import main.java.com.expenseTracker.util.ValidCategory;
@@ -19,6 +20,7 @@ public class Expense {
     private String category;
 
     @NotNull(message = "Date cannot be null")
+    @MaxDate
     private LocalDate date;
 
     public Expense(String name, double amount, String category, LocalDate date) {

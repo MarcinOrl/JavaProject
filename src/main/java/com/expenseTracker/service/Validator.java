@@ -1,9 +1,11 @@
 package main.java.com.expenseTracker.service;
 
+import main.java.com.expenseTracker.util.MaxDate;
 import main.java.com.expenseTracker.util.NotNull;
 import main.java.com.expenseTracker.util.MinValue;
 import main.java.com.expenseTracker.util.ValidCategory;
 import java.lang.reflect.Field;
+import java.time.LocalDate;
 
 public class Validator {
     public static void validate(Object obj) throws IllegalAccessException {
@@ -40,6 +42,14 @@ public class Validator {
                 }
                 if (!isValid) {
                     throw new IllegalArgumentException(validCategory.message());
+                }
+            }
+
+            // Sprawdzanie @MaxDate
+            if (field.isAnnotationPresent(MaxDate.class)) {
+                LocalDate value = (LocalDate) field.get(obj);
+                if (value != null && value.isAfter(LocalDate.now())) {
+                    throw new IllegalArgumentException(field.getAnnotation(MaxDate.class).message());
                 }
             }
         }
