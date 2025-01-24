@@ -173,6 +173,8 @@ public class MainApp extends Application {
         // Dodanie do layoutu
         root.getChildren().addAll(repositoryComboBox, table, nameField, amountField, categoryField, datePicker, addButton, buttonBox);
 
+        loadRepositories();
+
         // Ustawienia sceny
         Scene scene = new Scene(root, 600, 500);
         primaryStage.setScene(scene);
@@ -197,6 +199,23 @@ public class MainApp extends Application {
         if (currentRepository != null) {
             table.getItems().clear();
             table.getItems().addAll(currentRepository.getAll());
+        }
+    }
+
+    private void loadRepositories() {
+        String[] repoFiles = {"repo1.json", "repo2.json", "repo3.json"};
+
+        for (String repoFile : repoFiles) {
+            ExpenseRepository repository = new ExpenseRepository(repoFile);
+            repository.load();
+            repositories.add(repository);
+            repositoryComboBox.getItems().add(repository);
+        }
+
+        if (!repositories.isEmpty()) {
+            repositoryComboBox.getSelectionModel().select(0);
+            currentRepository = repositories.getFirst();
+            updateTable();
         }
     }
 
