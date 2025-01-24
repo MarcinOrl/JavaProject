@@ -13,8 +13,14 @@ import main.java.com.expenseTracker.service.Validator;
 
 import java.io.File;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainApp extends Application {
+    private List<ExpenseRepository> repositories = new ArrayList<>();
+    private ExpenseRepository currentRepository;
+    private ComboBox<ExpenseRepository> repositoryComboBox;
+    private TableView<Expense> table;
 
     public static void main(String[] args) {
         launch(args);
@@ -22,41 +28,39 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        ExpenseRepository repository = new ExpenseRepository();
-
         // Layout
         VBox root = new VBox(10);
         root.setStyle("-fx-padding: 20;");
 
+        // Wybor repozytorium
+        repositoryComboBox = new ComboBox<>();
+        repositoryComboBox.setPromptText("Choose repository");
+        repositoryComboBox.setOnAction(event -> {
+            currentRepository = repositoryComboBox.getSelectionModel().getSelectedItem();
+            updateTable();
+        });
+
         // Tabela wydatków
-        TableView<Expense> table = new TableView<>();
+        table = new TableView<>();
         TableColumn<Expense, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-
         TableColumn<Expense, Double> amountColumn = new TableColumn<>("Amount");
         amountColumn.setCellValueFactory(new PropertyValueFactory<>("amount"));
-
         TableColumn<Expense, String> categoryColumn = new TableColumn<>("Category");
         categoryColumn.setCellValueFactory(new PropertyValueFactory<>("category"));
-
         TableColumn<Expense, String> dateColumn = new TableColumn<>("Date");
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
-
         table.getColumns().addAll(nameColumn, amountColumn, categoryColumn, dateColumn);
 
         // Formularz
         TextField nameField = new TextField();
         nameField.setPromptText("Name");
-
         TextField amountField = new TextField();
         amountField.setPromptText("Amount");
-
         TextField categoryField = new TextField();
         categoryField.setPromptText("Category");
-
         DatePicker datePicker = new DatePicker();
         datePicker.setPromptText("Date");
-
         Button addButton = new Button("Add");
         addButton.setOnAction(e -> {
             try {
@@ -70,7 +74,7 @@ public class MainApp extends Application {
                 Validator.validate(expense);
 
                 table.getItems().add(expense);
-                repository.add(expense);
+                currentRepository.add(expense);
                 isDataChanged = true;
 
                 nameField.clear();
@@ -91,7 +95,7 @@ public class MainApp extends Application {
         saveButton.setOnAction(e -> {
             try {
                 if (loadedFilePath != null) {
-                    repository.saveExpenses(loadedFilePath);
+                    currentRepository.save();
                     showAlert(Alert.AlertType.INFORMATION, "Success", "Data saved successfully.");
                 } else {
                     showAlert(Alert.AlertType.WARNING, "No file", "No file loaded. Please load a file before saving.");
@@ -107,18 +111,16 @@ public class MainApp extends Application {
                 FileChooser fileChooser = new FileChooser();
                 fileChooser.setInitialDirectory(new File("."));
                 fileChooser.setTitle("Select a file");
-                fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+                fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files", "*.json"));
                 File file = fileChooser.showOpenDialog(primaryStage);
 
                 if (file != null) {
                     loadedFilePath = file.getAbsolutePath();
-                    repository.loadExpenses(loadedFilePath);
-                    table.getItems().clear();
-                    table.getItems().addAll(repository.getAll());
-                    showAlert(Alert.AlertType.INFORMATION, "Success", "Expenses loaded successfully.");
+                    loadRepositoryFromFile(loadedFilePath);
+                    showAlert(Alert.AlertType.INFORMATION, "Success", "Data loaded successfully.");
                 }
             } catch (Exception ex) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to load expenses: " + ex.getMessage());
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to load data: " + ex.getMessage());
             }
         });
 
@@ -126,12 +128,12 @@ public class MainApp extends Application {
         deleteButton.setOnAction(e -> {
             Expense selectedExpense = table.getSelectionModel().getSelectedItem();
             if (selectedExpense != null) {
-                repository.delete(selectedExpense);
+                currentRepository.delete(selectedExpense);
                 table.getItems().remove(selectedExpense);
                 isDataChanged = true;
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Expense deleted successfully.");
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Data deleted successfully.");
             } else {
-                showAlert(Alert.AlertType.WARNING, "Warning", "No expense selected.");
+                showAlert(Alert.AlertType.WARNING, "Warning", "No data selected.");
             }
         });
 
@@ -151,7 +153,7 @@ public class MainApp extends Application {
                 alert.showAndWait().ifPresent(response -> {
                     if (response == saveButtonExit) {
                         try {
-                            repository.saveExpenses(loadedFilePath);
+                            currentRepository.save();
                             showAlert(Alert.AlertType.INFORMATION, "Success", "Data saved successfully.");
                             isDataChanged = false;
                         } catch (Exception ex) {
@@ -169,7 +171,7 @@ public class MainApp extends Application {
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         // Dodanie do layoutu
-        root.getChildren().addAll(table, nameField, amountField, categoryField, datePicker, addButton, buttonBox);
+        root.getChildren().addAll(repositoryComboBox, table, nameField, amountField, categoryField, datePicker, addButton, buttonBox);
 
         // Ustawienia sceny
         Scene scene = new Scene(root, 600, 500);
@@ -180,6 +182,23 @@ public class MainApp extends Application {
 
     private String loadedFilePath;
     private boolean isDataChanged = false;
+
+    public void loadRepositoryFromFile(String filePath) {
+        ExpenseRepository repository = new ExpenseRepository(filePath);
+        repository.load();
+        repositories.add(repository);
+        repositoryComboBox.getItems().add(repository);
+        repositoryComboBox.getSelectionModel().select(repository);
+        currentRepository = repository;
+        updateTable();
+    }
+
+    private void updateTable() {
+        if (currentRepository != null) {
+            table.getItems().clear();
+            table.getItems().addAll(currentRepository.getAll());
+        }
+    }
 
     private void showAlert(Alert.AlertType alertType, String title, String message) {
         Alert alert = new Alert(alertType);

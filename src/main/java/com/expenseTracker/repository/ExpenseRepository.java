@@ -10,6 +10,10 @@ import java.util.stream.Collectors;
 
 public class ExpenseRepository extends GenericRepository<Expense> {
 
+    public ExpenseRepository(String filePath) {
+        super(filePath, Expense.class);
+    }
+
     // Suma wydatków na kategorie
     public Map<String, Double> getExpensesByCategory() {
         return getAll().stream()
@@ -67,43 +71,6 @@ public class ExpenseRepository extends GenericRepository<Expense> {
             System.out.println("Report exported successfully to " + filePath);
         } catch (IOException e) {
             System.err.println("Error exporting report: " + e.getMessage());
-        }
-    }
-
-    public void saveExpenses(String filePath) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-            for (Expense expense : getAll()) {
-                String formattedAmount = String.format(Locale.US, "%.2f", expense.getAmount());
-                writer.write(String.format("%s,%s,%s,%s\n",
-                        expense.getName(),
-                        formattedAmount,
-                        expense.getCategory(),
-                        expense.getDate()
-                ));
-            }
-        } catch (IOException e) {
-            System.err.println("Error saving expenses: " + e.getMessage());
-        }
-    }
-
-    public void loadExpenses(String filePath) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length == 4) {
-                    Expense expense = new Expense(
-                            parts[0],
-                            Double.parseDouble(parts[1]),
-                            parts[2],
-                            LocalDate.parse(parts[3])
-                    );
-                    add(expense);
-                }
-            }
-            System.out.println("Expenses (" + getAll().size() +  ") loaded from file: " + filePath);
-        } catch (IOException | NumberFormatException e) {
-            System.err.println("Error loading expenses: " + e.getMessage());
         }
     }
 }

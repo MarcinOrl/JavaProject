@@ -7,4 +7,6 @@ public interface Repository<T> {
     List<T> getAll();
     void delete(T item);
     void clear();
+    void save();
+    void load();
 }

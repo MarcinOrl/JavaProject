@@ -11,15 +11,15 @@ import java.util.Comparator;
 
 public class MainTesting {
     public static void main(String[] args) {
-        ExpenseRepository expenseRepository = new ExpenseRepository();
+        ExpenseRepository expenseRepository = new ExpenseRepository("expenses.json");
         populateRepository(expenseRepository);
 
-//        testSaveAndLoad(expenseRepository);
+        testSaveAndLoad(expenseRepository);
 //        testGenerics();
 //        testValidation();
 //        testStatistics(expenseRepository);
 //        testExportReport(expenseRepository);
-        testReflectionUtils();
+//        testReflectionUtils();
     }
 
     private static void populateRepository(ExpenseRepository expenseRepository) {
@@ -31,16 +31,15 @@ public class MainTesting {
 
     private static void testSaveAndLoad(ExpenseRepository expenseRepository) {
         System.out.println("\n=== TEST SAVE AND LOAD ===");
-        String filePath = "expenses.csv";
-        expenseRepository.saveExpenses(filePath);
+        expenseRepository.save();
         expenseRepository.clear();
-        expenseRepository.loadExpenses(filePath);
+        expenseRepository.load();
         expenseRepository.getAll().forEach(System.out::println);
     }
 
     private static void testGenerics() {
         System.out.println("\n=== TEST GENERICS ===");
-        GenericRepository<String> stringRepository = new GenericRepository<>();
+        GenericRepository<String> stringRepository = new GenericRepository<>("string.json", String.class);
         stringRepository.add("Hello");
         stringRepository.add("World");
         stringRepository.getAll().forEach(System.out::println);

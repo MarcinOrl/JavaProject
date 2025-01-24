@@ -23,6 +23,8 @@ public class Expense {
     @MaxDate
     private LocalDate date;
 
+    public Expense() {}
+
     public Expense(String name, double amount, String category, LocalDate date) {
         this.name = name;
         this.amount = amount;
