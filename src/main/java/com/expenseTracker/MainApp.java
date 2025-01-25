@@ -101,7 +101,6 @@ public class MainApp extends Application {
 
                 table.getItems().add(expense);
                 currentRepository.add(expense);
-                isDataChanged = true;
 
                 nameField.clear();
                 amountField.clear();
@@ -120,14 +119,16 @@ public class MainApp extends Application {
         Button saveButton = new Button("Save");
         saveButton.setOnAction(e -> {
             try {
-                if (loadedFilePath != null) {
-                    currentRepository.save();
-                    showAlert(Alert.AlertType.INFORMATION, "Success", "Data saved successfully.");
-                } else {
-                    showAlert(Alert.AlertType.WARNING, "No file", "No file loaded. Please load a file before saving.");
+                if (currentRepository == null) {
+                    showAlert(Alert.AlertType.WARNING, "No Repository", "No repository selected. Please select or create a repository first.");
                 }
+                if (!currentRepository.isDataChanged()) {
+                    return;
+                }
+                currentRepository.save();
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Data saved successfully.");
             } catch (Exception ex) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to load data: " + ex.getMessage());
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to save data: " + ex.getMessage());
             }
         });
 
@@ -156,7 +157,6 @@ public class MainApp extends Application {
             if (selectedExpense != null) {
                 currentRepository.delete(selectedExpense);
                 table.getItems().remove(selectedExpense);
-                isDataChanged = true;
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Data deleted successfully.");
             } else {
                 showAlert(Alert.AlertType.WARNING, "Warning", "No data selected.");
@@ -165,7 +165,16 @@ public class MainApp extends Application {
 
         // Event zamykania aplikacji
         primaryStage.setOnCloseRequest(event -> {
-            if (isDataChanged) {
+            boolean unsavedChanges = false;
+
+            for (ExpenseRepository repository : repositories) {
+                if (repository.isDataChanged()) {
+                    unsavedChanges = true;
+                    break;
+                }
+            }
+
+            if (unsavedChanges) {
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Confirm Exit");
                 alert.setHeaderText("Save Changes");
@@ -179,9 +188,11 @@ public class MainApp extends Application {
                 alert.showAndWait().ifPresent(response -> {
                     if (response == saveButtonExit) {
                         try {
-                            currentRepository.save();
-                            showAlert(Alert.AlertType.INFORMATION, "Success", "Data saved successfully.");
-                            isDataChanged = false;
+                            for (ExpenseRepository repository : repositories) {
+                                if (repository.isDataChanged()) {
+                                    repository.save();
+                                }
+                            }
                         } catch (Exception ex) {
                             showAlert(Alert.AlertType.ERROR, "Error", "Failed to save data: " + ex.getMessage());
                             event.consume();
@@ -210,7 +221,6 @@ public class MainApp extends Application {
     }
 
     private String loadedFilePath;
-    private boolean isDataChanged = false;
 
     public void loadRepositoryFromFile(String filePath) {
         ExpenseRepository repository = new ExpenseRepository(filePath);

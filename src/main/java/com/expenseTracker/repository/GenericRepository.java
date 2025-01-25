@@ -12,9 +12,10 @@ import java.util.List;
 
 public class GenericRepository<T> implements Repository<T> {
     private final List<T> items = new ArrayList<>();
-    private String filePath;
-    private Class<T> classType;
+    private final String filePath;
+    private final Class<T> classType;
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private boolean isDataChanged = false;
 
     public GenericRepository(String filePath, Class<T> classType) {
         this.filePath = filePath;
@@ -34,10 +35,15 @@ public class GenericRepository<T> implements Repository<T> {
         }
     }
 
+    public boolean isDataChanged() {
+        return isDataChanged;
+    }
+
     @Override
     public void add(T item) {
         items.add(item);
         System.out.println("Added: " + item);
+        isDataChanged = true;
     }
 
     @Override
@@ -49,6 +55,7 @@ public class GenericRepository<T> implements Repository<T> {
     public void delete(T item) {
         if (items.remove(item)) {
             System.out.println("Deleted: " + item);
+            isDataChanged = true;
         } else {
             System.out.println("Item not found: " + item);
         }
@@ -65,6 +72,7 @@ public class GenericRepository<T> implements Repository<T> {
         try {
             objectMapper.writeValue(new File(filePath), items);
             System.out.println("Items saved to JSON file: " + filePath);
+            isDataChanged = false;
         } catch (IOException e) {
             System.err.println("Error saving items: " + e.getMessage());
         }
