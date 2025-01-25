@@ -22,6 +22,16 @@ public class GenericRepository<T> implements Repository<T> {
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.setAnnotationIntrospector(new JacksonAnnotationIntrospector());
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+
+        File file = new File(filePath);
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+                objectMapper.writeValue(file, new ArrayList<T>());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to create repository file: " + e.getMessage(), e);
+            }
+        }
     }
 
     @Override
@@ -74,5 +84,14 @@ public class GenericRepository<T> implements Repository<T> {
         } catch (IOException e) {
             System.err.println("Error loading items: " + e.getMessage());
         }
+    }
+
+    @Override
+    public String toString() {
+        String fileName = new File(filePath).getName();
+        if (fileName.endsWith(".json")) {
+            fileName = fileName.substring(0, fileName.lastIndexOf(".json"));
+        }
+        return fileName;
     }
 }

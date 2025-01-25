@@ -40,6 +40,31 @@ public class MainApp extends Application {
             updateTable();
         });
 
+        // Tworzenie nowych repozytoriów
+        TextField repositoryNameField = new TextField();
+        repositoryNameField.setPromptText("Enter repository name");
+
+        Button createRepositoryButton = new Button("Create repository");
+        createRepositoryButton.setOnAction(event -> {
+            String repositoryName = repositoryNameField.getText().trim();
+            if (repositoryName.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Invalid Input", "Repository name cannot be empty.");
+                return;
+            }
+            try {
+                String filePath = "./repositories/" + repositoryName + ".json";
+                ExpenseRepository newRepository = new ExpenseRepository(filePath);
+                repositories.add(newRepository);
+                repositoryComboBox.getItems().add(newRepository);
+                repositoryComboBox.getSelectionModel().select(newRepository);
+                currentRepository = newRepository;
+                repositoryNameField.clear();
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Repository '" + repositoryName + "' created successfully.");
+            } catch (Exception ex) {
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to create repository: " + ex.getMessage());
+            }
+        });
+
         // Tabela wydatków
         table = new TableView<>();
         TableColumn<Expense, String> nameColumn = new TableColumn<>("Name");
@@ -61,6 +86,7 @@ public class MainApp extends Application {
         categoryField.setPromptText("Category");
         DatePicker datePicker = new DatePicker();
         datePicker.setPromptText("Date");
+        datePicker.setValue(LocalDate.now());
         Button addButton = new Button("Add");
         addButton.setOnAction(e -> {
             try {
@@ -167,11 +193,12 @@ public class MainApp extends Application {
             }
         });
 
+        HBox repositoryControls = new HBox(10, repositoryComboBox, repositoryNameField, createRepositoryButton);
         HBox buttonBox = new HBox(10, saveButton, loadButton, deleteButton);
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         // Dodanie do layoutu
-        root.getChildren().addAll(repositoryComboBox, table, nameField, amountField, categoryField, datePicker, addButton, buttonBox);
+        root.getChildren().addAll(repositoryControls, table, nameField, amountField, categoryField, datePicker, addButton, buttonBox);
 
         loadRepositories();
 
@@ -196,20 +223,27 @@ public class MainApp extends Application {
     }
 
     private void updateTable() {
+        table.getItems().clear();
         if (currentRepository != null) {
-            table.getItems().clear();
             table.getItems().addAll(currentRepository.getAll());
         }
     }
 
     private void loadRepositories() {
-        String[] repoFiles = {"repo1.json", "repo2.json", "repo3.json"};
+        File directory = new File("./repositories");
+        File[] jsonFiles = directory.listFiles((dir, name) -> name.endsWith(".json"));
 
-        for (String repoFile : repoFiles) {
-            ExpenseRepository repository = new ExpenseRepository(repoFile);
-            repository.load();
-            repositories.add(repository);
-            repositoryComboBox.getItems().add(repository);
+        if (jsonFiles != null) {
+            for (File file : jsonFiles) {
+                try {
+                    ExpenseRepository repository = new ExpenseRepository(file.getAbsolutePath());
+                    repository.load();
+                    repositories.add(repository);
+                    repositoryComboBox.getItems().add(repository);
+                } catch (Exception ex) {
+                    System.err.println("Failed to load repository: " + file.getName() + " Error: " + ex.getMessage());
+                }
+            }
         }
 
         if (!repositories.isEmpty()) {
