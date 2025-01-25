@@ -10,8 +10,10 @@ import javafx.stage.Stage;
 import main.java.com.expenseTracker.model.Expense;
 import main.java.com.expenseTracker.repository.ExpenseRepository;
 import main.java.com.expenseTracker.service.Validator;
+import main.java.com.expenseTracker.util.ValidCategory;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -82,8 +84,10 @@ public class MainApp extends Application {
         nameField.setPromptText("Name");
         TextField amountField = new TextField();
         amountField.setPromptText("Amount");
-        TextField categoryField = new TextField();
-        categoryField.setPromptText("Category");
+        String[] allowedCategories = getAllowedCategories(Expense.class);
+        ComboBox<String> categoryComboBox = new ComboBox<>();
+        categoryComboBox.getItems().addAll(allowedCategories);
+        categoryComboBox.setPromptText("Category");
         DatePicker datePicker = new DatePicker();
         datePicker.setPromptText("Date");
         datePicker.setValue(LocalDate.now());
@@ -93,7 +97,7 @@ public class MainApp extends Application {
                 String name = nameField.getText();
                 double amount = Double.parseDouble(amountField.getText());
                 amount = Math.round(amount * 100) / 100.0;
-                String category = categoryField.getText();
+                String category = categoryComboBox.getValue();
                 LocalDate date = datePicker.getValue();
 
                 Expense expense = new Expense(name, amount, category, date);
@@ -104,7 +108,7 @@ public class MainApp extends Application {
 
                 nameField.clear();
                 amountField.clear();
-                categoryField.clear();
+                categoryComboBox.getSelectionModel().clearSelection();
                 datePicker.setValue(LocalDate.now());
 
             } catch (NumberFormatException ex) {
@@ -209,7 +213,7 @@ public class MainApp extends Application {
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         // Dodanie do layoutu
-        root.getChildren().addAll(repositoryControls, table, nameField, amountField, categoryField, datePicker, addButton, buttonBox);
+        root.getChildren().addAll(repositoryControls, table, nameField, amountField, categoryComboBox, datePicker, addButton, buttonBox);
 
         loadRepositories();
 
@@ -261,6 +265,20 @@ public class MainApp extends Application {
             currentRepository = repositories.getFirst();
             updateTable();
         }
+    }
+
+    private String[] getAllowedCategories(Class<?> cl) {
+        try {
+            Field field = cl.getDeclaredField("category");
+
+            if (field.isAnnotationPresent(ValidCategory.class)) {
+                ValidCategory annotation = field.getAnnotation(ValidCategory.class);
+                return annotation.allowedCategories();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new String[0];
     }
 
     private void showAlert(Alert.AlertType alertType, String title, String message) {
