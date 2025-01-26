@@ -9,6 +9,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import main.java.com.expenseTracker.model.Expense;
 import main.java.com.expenseTracker.repository.ExpenseRepository;
+import main.java.com.expenseTracker.repository.GenericRepository;
 import main.java.com.expenseTracker.service.Validator;
 import main.java.com.expenseTracker.util.ValidCategory;
 
@@ -19,10 +20,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainApp extends Application {
-    private List<ExpenseRepository> repositories = new ArrayList<>();
-    private ExpenseRepository currentRepository;
-    private ComboBox<ExpenseRepository> repositoryComboBox;
-    private TableView<Expense> table;
+    private List<GenericRepository<?>> repositories = new ArrayList<>();
+    private GenericRepository<?> currentRepository;
+    private ComboBox<GenericRepository<?>> repositoryComboBox;
+    private TableView<Object> table;
 
     public static void main(String[] args) {
         launch(args);
@@ -30,9 +31,59 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        // Layout glowny
+        TabPane tabPane = new TabPane();
+        Tab expenseTab = createExpenseTab();
+        Tab taskTab = createTaskTab();
+        tabPane.getTabs().addAll(expenseTab, taskTab);
+
+        Scene scene = new Scene(tabPane, 600, 500);
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Expense and Task Tracker");
+
+        loadRepositories();
+
+        // Event zamykania aplikacji
+        primaryStage.setOnCloseRequest(event -> {
+            boolean unsavedChanges = repositories.stream().anyMatch(GenericRepository::isDataChanged);
+
+            if (unsavedChanges) {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirm Exit");
+                alert.setHeaderText("Save Changes");
+                alert.setContentText("Do you want to save changes before exiting?");
+
+                ButtonType saveButtonExit = new ButtonType("Yes, Save");
+                ButtonType exitButtonExit = new ButtonType("No, Exit Without Saving", ButtonBar.ButtonData.CANCEL_CLOSE);
+                ButtonType cancelButtonExit = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+                alert.getButtonTypes().setAll(saveButtonExit, exitButtonExit, cancelButtonExit);
+
+                alert.showAndWait().ifPresent(response -> {
+                    if (response == saveButtonExit) {
+                        try {
+                            for (GenericRepository<?> repository : repositories) {
+                                if (repository.isDataChanged()) {
+                                    repository.save();
+                                }
+                            }
+                        } catch (Exception ex) {
+                            showAlert(Alert.AlertType.ERROR, "Error", "Failed to save data: " + ex.getMessage());
+                            event.consume();
+                        }
+                    } else if (response == cancelButtonExit) {
+                        event.consume();
+                    }
+                });
+            }
+        });
+
+        primaryStage.show();
+    }
+
+    private Tab createExpenseTab() {
         // Layout
-        VBox root = new VBox(10);
-        root.setStyle("-fx-padding: 20;");
+        VBox expenseLayout = new VBox(10);
+        expenseLayout.setStyle("-fx-padding: 20;");
 
         // Wybor repozytorium
         repositoryComboBox = new ComboBox<>();
@@ -55,7 +106,7 @@ public class MainApp extends Application {
             }
             try {
                 String filePath = "./repositories/" + repositoryName + ".json";
-                ExpenseRepository newRepository = new ExpenseRepository(filePath);
+                GenericRepository<Expense> newRepository = new GenericRepository<>(filePath, Expense.class);
                 repositories.add(newRepository);
                 repositoryComboBox.getItems().add(newRepository);
                 repositoryComboBox.getSelectionModel().select(newRepository);
@@ -69,13 +120,13 @@ public class MainApp extends Application {
 
         // Tabela wydatków
         table = new TableView<>();
-        TableColumn<Expense, String> nameColumn = new TableColumn<>("Name");
+        TableColumn<Object, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        TableColumn<Expense, Double> amountColumn = new TableColumn<>("Amount");
+        TableColumn<Object, Double> amountColumn = new TableColumn<>("Amount");
         amountColumn.setCellValueFactory(new PropertyValueFactory<>("amount"));
-        TableColumn<Expense, String> categoryColumn = new TableColumn<>("Category");
+        TableColumn<Object, String> categoryColumn = new TableColumn<>("Category");
         categoryColumn.setCellValueFactory(new PropertyValueFactory<>("category"));
-        TableColumn<Expense, String> dateColumn = new TableColumn<>("Date");
+        TableColumn<Object, String> dateColumn = new TableColumn<>("Date");
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         table.getColumns().addAll(nameColumn, amountColumn, categoryColumn, dateColumn);
 
@@ -84,13 +135,11 @@ public class MainApp extends Application {
         nameField.setPromptText("Name");
         TextField amountField = new TextField();
         amountField.setPromptText("Amount");
-        String[] allowedCategories = getAllowedCategories(Expense.class);
         ComboBox<String> categoryComboBox = new ComboBox<>();
-        categoryComboBox.getItems().addAll(allowedCategories);
+        categoryComboBox.getItems().addAll(getAllowedCategories(Expense.class));
         categoryComboBox.setPromptText("Category");
-        DatePicker datePicker = new DatePicker();
-        datePicker.setPromptText("Date");
-        datePicker.setValue(LocalDate.now());
+        DatePicker datePicker = new DatePicker(LocalDate.now());
+
         Button addButton = new Button("Add");
         addButton.setOnAction(e -> {
             try {
@@ -102,15 +151,13 @@ public class MainApp extends Application {
 
                 Expense expense = new Expense(name, amount, category, date);
                 Validator.validate(expense);
-
-                table.getItems().add(expense);
-                currentRepository.add(expense);
+                ((GenericRepository<Expense>) currentRepository).add(expense);
+                updateTable();
 
                 nameField.clear();
                 amountField.clear();
                 categoryComboBox.getSelectionModel().clearSelection();
                 datePicker.setValue(LocalDate.now());
-
             } catch (NumberFormatException ex) {
                 showAlert(Alert.AlertType.ERROR, "Invalid Input", "Amount must be a valid number.");
             } catch (IllegalArgumentException ex) {
@@ -136,30 +183,11 @@ public class MainApp extends Application {
             }
         });
 
-        Button loadButton = new Button("Load");
-        loadButton.setOnAction(e -> {
-            try {
-                FileChooser fileChooser = new FileChooser();
-                fileChooser.setInitialDirectory(new File("."));
-                fileChooser.setTitle("Select a file");
-                fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files", "*.json"));
-                File file = fileChooser.showOpenDialog(primaryStage);
-
-                if (file != null) {
-                    loadedFilePath = file.getAbsolutePath();
-                    loadRepositoryFromFile(loadedFilePath);
-                    showAlert(Alert.AlertType.INFORMATION, "Success", "Data loaded successfully.");
-                }
-            } catch (Exception ex) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to load data: " + ex.getMessage());
-            }
-        });
-
         Button deleteButton = new Button("Delete Selected");
         deleteButton.setOnAction(e -> {
-            Expense selectedExpense = table.getSelectionModel().getSelectedItem();
-            if (selectedExpense != null) {
-                currentRepository.delete(selectedExpense);
+            Expense selectedExpense = (Expense) table.getSelectionModel().getSelectedItem();
+            if (selectedExpense != null && currentRepository != null) {
+                ((GenericRepository<Object>) currentRepository).delete(selectedExpense);
                 table.getItems().remove(selectedExpense);
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Data deleted successfully.");
             } else {
@@ -167,73 +195,21 @@ public class MainApp extends Application {
             }
         });
 
-        // Event zamykania aplikacji
-        primaryStage.setOnCloseRequest(event -> {
-            boolean unsavedChanges = false;
-
-            for (ExpenseRepository repository : repositories) {
-                if (repository.isDataChanged()) {
-                    unsavedChanges = true;
-                    break;
-                }
-            }
-
-            if (unsavedChanges) {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Confirm Exit");
-                alert.setHeaderText("Save Changes");
-                alert.setContentText("Do you want to save changes before exiting?");
-
-                ButtonType saveButtonExit = new ButtonType("Yes, Save");
-                ButtonType exitButtonExit = new ButtonType("No, Exit Without Saving", ButtonBar.ButtonData.CANCEL_CLOSE);
-                ButtonType cancelButtonExit = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-                alert.getButtonTypes().setAll(saveButtonExit, exitButtonExit, cancelButtonExit);
-
-                alert.showAndWait().ifPresent(response -> {
-                    if (response == saveButtonExit) {
-                        try {
-                            for (ExpenseRepository repository : repositories) {
-                                if (repository.isDataChanged()) {
-                                    repository.save();
-                                }
-                            }
-                        } catch (Exception ex) {
-                            showAlert(Alert.AlertType.ERROR, "Error", "Failed to save data: " + ex.getMessage());
-                            event.consume();
-                        }
-                    } else if (response == cancelButtonExit) {
-                        event.consume();
-                    }
-                });
-            }
-        });
-
         HBox repositoryControls = new HBox(10, repositoryComboBox, repositoryNameField, createRepositoryButton);
-        HBox buttonBox = new HBox(10, saveButton, loadButton, deleteButton);
+        VBox form = new VBox(10, nameField, amountField, categoryComboBox, datePicker, addButton);
+        HBox buttonBox = new HBox(10, saveButton, deleteButton);
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         // Dodanie do layoutu
-        root.getChildren().addAll(repositoryControls, table, nameField, amountField, categoryComboBox, datePicker, addButton, buttonBox);
+        expenseLayout.getChildren().addAll(repositoryControls, table, form, buttonBox);
 
-        loadRepositories();
-
-        // Ustawienia sceny
-        Scene scene = new Scene(root, 600, 500);
-        primaryStage.setScene(scene);
-        primaryStage.setTitle("Expense Tracker");
-        primaryStage.show();
+        return new Tab("Expenses", expenseLayout);
     }
 
-    private String loadedFilePath;
-
-    public void loadRepositoryFromFile(String filePath) {
-        ExpenseRepository repository = new ExpenseRepository(filePath);
-        repository.load();
-        repositories.add(repository);
-        repositoryComboBox.getItems().add(repository);
-        repositoryComboBox.getSelectionModel().select(repository);
-        currentRepository = repository;
-        updateTable();
+    private Tab createTaskTab() {
+        VBox taskLayout = new VBox(10);
+        taskLayout.setStyle("-fx-padding: 20;");
+        return new Tab("Tasks", taskLayout);
     }
 
     private void updateTable() {
@@ -270,10 +246,8 @@ public class MainApp extends Application {
     private String[] getAllowedCategories(Class<?> cl) {
         try {
             Field field = cl.getDeclaredField("category");
-
             if (field.isAnnotationPresent(ValidCategory.class)) {
-                ValidCategory annotation = field.getAnnotation(ValidCategory.class);
-                return annotation.allowedCategories();
+                return field.getAnnotation(ValidCategory.class).allowedCategories();
             }
         } catch (Exception e) {
             e.printStackTrace();
