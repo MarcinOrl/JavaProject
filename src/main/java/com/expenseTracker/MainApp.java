@@ -1,5 +1,6 @@
 package main.java.com.expenseTracker;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -8,8 +9,10 @@ import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import main.java.com.expenseTracker.model.Expense;
+import main.java.com.expenseTracker.model.Task;
 import main.java.com.expenseTracker.repository.ExpenseRepository;
 import main.java.com.expenseTracker.repository.GenericRepository;
+import main.java.com.expenseTracker.repository.TaskRepository;
 import main.java.com.expenseTracker.service.Validator;
 import main.java.com.expenseTracker.util.ValidCategory;
 
@@ -18,12 +21,14 @@ import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class MainApp extends Application {
     private List<GenericRepository<?>> repositories = new ArrayList<>();
     private GenericRepository<?> currentRepository;
     private ComboBox<GenericRepository<?>> repositoryComboBox;
     private TableView<Object> table;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     public static void main(String[] args) {
         launch(args);
@@ -99,23 +104,9 @@ public class MainApp extends Application {
 
         Button createRepositoryButton = new Button("Create repository");
         createRepositoryButton.setOnAction(event -> {
-            String repositoryName = repositoryNameField.getText().trim();
-            if (repositoryName.isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "Invalid Input", "Repository name cannot be empty.");
-                return;
-            }
-            try {
-                String filePath = "./repositories/" + repositoryName + ".json";
-                GenericRepository<Expense> newRepository = new GenericRepository<>(filePath, Expense.class);
-                repositories.add(newRepository);
-                repositoryComboBox.getItems().add(newRepository);
-                repositoryComboBox.getSelectionModel().select(newRepository);
-                currentRepository = newRepository;
-                repositoryNameField.clear();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Repository '" + repositoryName + "' created successfully.");
-            } catch (Exception ex) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to create repository: " + ex.getMessage());
-            }
+            String repositoryName = repositoryNameField.getText();
+            createRepository(repositoryName, Expense.class);
+            repositoryNameField.clear();
         });
 
         // Tabela wydatków
@@ -212,6 +203,31 @@ public class MainApp extends Application {
         return new Tab("Tasks", taskLayout);
     }
 
+    private <T> void createRepository(String repositoryName, Class<T> repositoryType) {
+        if (repositoryName == null || repositoryName.trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Invalid Input", "Repository name cannot be empty.");
+            return;
+        }
+        String typeFolder = "./repositories/" + repositoryType.getSimpleName();
+        File directory = new File(typeFolder);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+        String filePath = typeFolder + "/" + repositoryName.trim() + ".json";
+        try {
+            GenericRepository<T> newRepository = new GenericRepository<>(filePath, repositoryType);
+            repositories.add(newRepository);
+            repositoryComboBox.getItems().add(newRepository);
+            repositoryComboBox.getSelectionModel().select(newRepository);
+            currentRepository = newRepository;
+
+            showAlert(Alert.AlertType.INFORMATION, "Success", "Repository '" + repositoryName + "' created successfully.");
+        } catch (Exception ex) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Failed to create repository: " + ex.getMessage());
+        }
+    }
+
+
     private void updateTable() {
         table.getItems().clear();
         if (currentRepository != null) {
@@ -220,18 +236,26 @@ public class MainApp extends Application {
     }
 
     private void loadRepositories() {
-        File directory = new File("./repositories");
-        File[] jsonFiles = directory.listFiles((dir, name) -> name.endsWith(".json"));
+        File rootDirectory = new File("./repositories");
+        File[] typeDirectories = rootDirectory.listFiles(File::isDirectory);
 
-        if (jsonFiles != null) {
-            for (File file : jsonFiles) {
-                try {
-                    ExpenseRepository repository = new ExpenseRepository(file.getAbsolutePath());
-                    repository.load();
-                    repositories.add(repository);
-                    repositoryComboBox.getItems().add(repository);
-                } catch (Exception ex) {
-                    System.err.println("Failed to load repository: " + file.getName() + " Error: " + ex.getMessage());
+        if (typeDirectories != null) {
+            for (File typeDir : typeDirectories) {
+                String typeName = typeDir.getName();
+                File[] jsonFiles = typeDir.listFiles((dir, name) -> name.endsWith(".json"));
+
+                if (jsonFiles != null) {
+                    for (File file : jsonFiles) {
+                        try {
+                            Class<?> repositoryType = Class.forName("main.java.com.expenseTracker.model." + typeName);
+                            GenericRepository<?> repository = new GenericRepository<>(file.getAbsolutePath(), repositoryType);
+                            repository.load();
+                            repositories.add(repository);
+                            repositoryComboBox.getItems().add(repository);
+                        } catch (Exception ex) {
+                            System.err.println("Failed to load repository: " + file.getName() + " Error: " + ex.getMessage());
+                        }
+                    }
                 }
             }
         }

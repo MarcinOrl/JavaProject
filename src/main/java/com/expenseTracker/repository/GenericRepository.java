@@ -70,6 +70,10 @@ public class GenericRepository<T> implements Repository<T> {
     @Override
     public void save() {
         try {
+            File directory = new File(filePath).getParentFile();
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
             objectMapper.writeValue(new File(filePath), items);
             System.out.println("Items saved to JSON file: " + filePath);
             isDataChanged = false;
