@@ -2,6 +2,7 @@ package main.java.com.expenseTracker.model;
 
 import main.java.com.expenseTracker.util.MinValue;
 import main.java.com.expenseTracker.util.NotNull;
+import main.java.com.expenseTracker.util.ValidCategory;
 
 import java.time.LocalDate;
 
@@ -9,18 +10,22 @@ public class Task {
     @NotNull(message = "Title cannot be null or empty")
     private String title;
 
+    private String description;
+
     @NotNull(message = "Due date cannot be null")
     private LocalDate dueDate;
 
     @MinValue(value = 1, message = "Priority must be greater than 0")
-    private int priority;
+    @ValidCategory(allowedCategories = {"1", "2", "3", "4", "5"}, message = "Invalid priority.")
+    private String priority;
 
     private boolean completed;
 
     public Task() {}
 
-    public Task(String title, LocalDate dueDate, int priority, boolean completed) {
+    public Task(String title, String description, LocalDate dueDate, String priority, boolean completed) {
         this.title = title;
+        this.description = description;
         this.dueDate = dueDate;
         this.priority = priority;
         this.completed = completed;
@@ -34,6 +39,10 @@ public class Task {
         this.title = title;
     }
 
+    public String getDescription() { return description; }
+
+    public void setDescription(String description) { this.description = description; }
+
     public LocalDate getDueDate() {
         return dueDate;
     }
@@ -42,11 +51,11 @@ public class Task {
         this.dueDate = dueDate;
     }
 
-    public int getPriority() {
+    public String getPriority() {
         return priority;
     }
 
-    public void setPriority(int priority) {
+    public void setPriority(String priority) {
         this.priority = priority;
     }
 

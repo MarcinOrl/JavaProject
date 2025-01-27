@@ -21,9 +21,9 @@ public class TaskRepository extends GenericRepository<Task> {
     }
 
     // Pobiera zadania o określonym priorytecie
-    public List<Task> getTasksByPriority(int priority) {
+    public List<Task> getTasksByPriority(String priority) {
         return getAll().stream()
-                .filter(task -> task.getPriority() == priority)
+                .filter(task -> task.getPriority().equals(priority))
                 .collect(Collectors.toList());
     }
 

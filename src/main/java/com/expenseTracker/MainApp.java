@@ -6,7 +6,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import main.java.com.expenseTracker.model.Expense;
 import main.java.com.expenseTracker.model.Task;
@@ -21,13 +20,15 @@ import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 public class MainApp extends Application {
     private List<GenericRepository<?>> repositories = new ArrayList<>();
     private GenericRepository<?> currentRepository;
-    private ComboBox<GenericRepository<?>> repositoryComboBox;
-    private TableView<Object> table;
+    private TableView<Expense> expenseTable;
+    private TableView<Task> taskTable;
+    private ComboBox<GenericRepository<?>> expenseRepositoryComboBox;
+    private ComboBox<GenericRepository<?>> taskRepositoryComboBox;
     private ObjectMapper objectMapper = new ObjectMapper();
 
     public static void main(String[] args) {
@@ -38,15 +39,27 @@ public class MainApp extends Application {
     public void start(Stage primaryStage) {
         // Layout glowny
         TabPane tabPane = new TabPane();
-        Tab expenseTab = createExpenseTab();
-        Tab taskTab = createTaskTab();
+        expenseTab = createExpenseTab();
+        taskTab = createTaskTab();
         tabPane.getTabs().addAll(expenseTab, taskTab);
+
+//        tabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab) -> {
+//            if (newTab == expenseTab) {
+//                filterRepositoriesForExpense();
+//                currentRepository = getRepositoryForTab(Expense.class);
+//                updateTable();
+//            } else if (newTab == taskTab) {
+//                filterRepositoriesForTask();
+//                currentRepository = getRepositoryForTab(Task.class);
+//                updateTable();
+//            }
+//        });
+
+        loadRepositories();
 
         Scene scene = new Scene(tabPane, 600, 500);
         primaryStage.setScene(scene);
         primaryStage.setTitle("Expense and Task Tracker");
-
-        loadRepositories();
 
         // Event zamykania aplikacji
         primaryStage.setOnCloseRequest(event -> {
@@ -85,20 +98,21 @@ public class MainApp extends Application {
         primaryStage.show();
     }
 
+    // Zakladka Expense
     private Tab createExpenseTab() {
         // Layout
         VBox expenseLayout = new VBox(10);
         expenseLayout.setStyle("-fx-padding: 20;");
 
         // Wybor repozytorium
-        repositoryComboBox = new ComboBox<>();
-        repositoryComboBox.setPromptText("Choose repository");
-        repositoryComboBox.setOnAction(event -> {
-            currentRepository = repositoryComboBox.getSelectionModel().getSelectedItem();
+        expenseRepositoryComboBox = new ComboBox<>();
+        expenseRepositoryComboBox.setPromptText("Choose repository");
+        expenseRepositoryComboBox.setOnAction(event -> {
+            currentRepository = expenseRepositoryComboBox.getSelectionModel().getSelectedItem();
             updateTable();
         });
 
-        // Tworzenie nowych repozytoriów
+        // Tworzenie nowych repozytoriow
         TextField repositoryNameField = new TextField();
         repositoryNameField.setPromptText("Enter repository name");
 
@@ -109,17 +123,17 @@ public class MainApp extends Application {
             repositoryNameField.clear();
         });
 
-        // Tabela wydatków
-        table = new TableView<>();
-        TableColumn<Object, String> nameColumn = new TableColumn<>("Name");
+        // Tabela wydatkow
+        expenseTable = new TableView<>();
+        TableColumn<Expense, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        TableColumn<Object, Double> amountColumn = new TableColumn<>("Amount");
+        TableColumn<Expense, Double> amountColumn = new TableColumn<>("Amount");
         amountColumn.setCellValueFactory(new PropertyValueFactory<>("amount"));
-        TableColumn<Object, String> categoryColumn = new TableColumn<>("Category");
+        TableColumn<Expense, String> categoryColumn = new TableColumn<>("Category");
         categoryColumn.setCellValueFactory(new PropertyValueFactory<>("category"));
-        TableColumn<Object, String> dateColumn = new TableColumn<>("Date");
+        TableColumn<Expense, String> dateColumn = new TableColumn<>("Date");
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
-        table.getColumns().addAll(nameColumn, amountColumn, categoryColumn, dateColumn);
+        expenseTable.getColumns().addAll(nameColumn, amountColumn, categoryColumn, dateColumn);
 
         // Formularz
         TextField nameField = new TextField();
@@ -158,41 +172,13 @@ public class MainApp extends Application {
             }
         });
 
-        Button saveButton = new Button("Save");
-        saveButton.setOnAction(e -> {
-            try {
-                if (currentRepository == null) {
-                    showAlert(Alert.AlertType.WARNING, "No Repository", "No repository selected. Please select or create a repository first.");
-                }
-                if (!currentRepository.isDataChanged()) {
-                    return;
-                }
-                currentRepository.save();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Data saved successfully.");
-            } catch (Exception ex) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to save data: " + ex.getMessage());
-            }
-        });
-
-        Button deleteButton = new Button("Delete Selected");
-        deleteButton.setOnAction(e -> {
-            Expense selectedExpense = (Expense) table.getSelectionModel().getSelectedItem();
-            if (selectedExpense != null && currentRepository != null) {
-                ((GenericRepository<Object>) currentRepository).delete(selectedExpense);
-                table.getItems().remove(selectedExpense);
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Data deleted successfully.");
-            } else {
-                showAlert(Alert.AlertType.WARNING, "Warning", "No data selected.");
-            }
-        });
-
-        HBox repositoryControls = new HBox(10, repositoryComboBox, repositoryNameField, createRepositoryButton);
+        HBox repositoryControls = new HBox(10, expenseRepositoryComboBox, repositoryNameField, createRepositoryButton);
         VBox form = new VBox(10, nameField, amountField, categoryComboBox, datePicker, addButton);
-        HBox buttonBox = new HBox(10, saveButton, deleteButton);
+        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton());
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         // Dodanie do layoutu
-        expenseLayout.getChildren().addAll(repositoryControls, table, form, buttonBox);
+        expenseLayout.getChildren().addAll(repositoryControls, expenseTable, form, buttonBox);
 
         return new Tab("Expenses", expenseLayout);
     }
@@ -200,8 +186,89 @@ public class MainApp extends Application {
     private Tab createTaskTab() {
         VBox taskLayout = new VBox(10);
         taskLayout.setStyle("-fx-padding: 20;");
+
+        // Wybor repozytorium
+        taskRepositoryComboBox = new ComboBox<>();
+        taskRepositoryComboBox.setPromptText("Choose repository");
+        taskRepositoryComboBox.setOnAction(event -> {
+            currentRepository = taskRepositoryComboBox.getSelectionModel().getSelectedItem();
+            updateTable();
+        });
+
+        // Tworzenie nowych repozytoriow
+        TextField repositoryNameField = new TextField();
+        repositoryNameField.setPromptText("Enter repository name");
+
+        Button createRepositoryButton = new Button("Create repository");
+        createRepositoryButton.setOnAction(event -> {
+            String repositoryName = repositoryNameField.getText();
+            createRepository(repositoryName, Task.class);
+            repositoryNameField.clear();
+        });
+
+        // Tabela zadan
+        taskTable = new TableView<>();
+        TableColumn<Task, String> titleColumn = new TableColumn<>("Title");
+        titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
+        TableColumn<Task, String> descriptionColumn = new TableColumn<>("Description");
+        descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
+        TableColumn<Task, LocalDate> dueDateColumn = new TableColumn<>("Due Date");
+        dueDateColumn.setCellValueFactory(new PropertyValueFactory<>("dueDate"));
+        TableColumn<Task, String> priorityColumn = new TableColumn<>("Priority");
+        priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
+        TableColumn<Task, Boolean> completedColumn = new TableColumn<>("Completed");
+        taskTable.getColumns().addAll(titleColumn, descriptionColumn, dueDateColumn, priorityColumn, completedColumn);
+
+        // Formularz
+        TextField titleField = new TextField();
+        titleField.setPromptText("Title");
+        TextField descriptionField = new TextField();
+        descriptionField.setPromptText("Description");
+        DatePicker dueDatePicker = new DatePicker(LocalDate.now());
+        ComboBox<String> priorityComboBox = new ComboBox<>();
+        priorityComboBox.getItems().addAll(getAllowedCategories(Task.class));
+        priorityComboBox.setPromptText("Priority");
+        CheckBox completedCheckBox = new CheckBox("Completed");
+        completedCheckBox.setSelected(false);
+
+        Button addButton = new Button("Add");
+        addButton.setOnAction(event -> {
+            try {
+                String title = titleField.getText();
+                String description = descriptionField.getText();
+                LocalDate dueDate = dueDatePicker.getValue();
+                String priority = priorityComboBox.getValue();
+                boolean completed = completedCheckBox.isSelected();
+
+                Task task = new Task(title, description, dueDate, priority, completed);
+                Validator.validate(task);
+                ((GenericRepository<Task>) currentRepository).add(task);
+                updateTable();
+
+                titleField.clear();
+                descriptionField.clear();
+                priorityComboBox.getSelectionModel().clearSelection();
+                dueDatePicker.setValue(LocalDate.now());
+                completedCheckBox.setSelected(false);
+            } catch (IllegalArgumentException ex) {
+                showAlert(Alert.AlertType.ERROR, "Validation Error", ex.getMessage());
+            } catch (Exception ex) {
+                showAlert(Alert.AlertType.ERROR, "Error", "An unexpected error occurred: " + ex.getMessage());
+            }
+        });
+
+        HBox repositoryControls = new HBox(10, taskRepositoryComboBox, repositoryNameField, createRepositoryButton);
+        VBox form = new VBox(10, titleField, descriptionField, dueDatePicker, priorityComboBox, completedCheckBox, addButton);
+        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton());
+        buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
+
+        taskLayout.getChildren().addAll(repositoryControls, taskTable, form, buttonBox);
+
         return new Tab("Tasks", taskLayout);
     }
+
+    private Tab expenseTab;
+    private Tab taskTab;
 
     private <T> void createRepository(String repositoryName, Class<T> repositoryType) {
         if (repositoryName == null || repositoryName.trim().isEmpty()) {
@@ -217,8 +284,13 @@ public class MainApp extends Application {
         try {
             GenericRepository<T> newRepository = new GenericRepository<>(filePath, repositoryType);
             repositories.add(newRepository);
-            repositoryComboBox.getItems().add(newRepository);
-            repositoryComboBox.getSelectionModel().select(newRepository);
+            if (repositoryType.equals(Expense.class)) {
+                expenseRepositoryComboBox.getItems().add(newRepository);
+                expenseRepositoryComboBox.getSelectionModel().select(newRepository);
+            } else if (repositoryType.equals(Task.class)) {
+                taskRepositoryComboBox.getItems().add(newRepository);
+                taskRepositoryComboBox.getSelectionModel().select(newRepository);
+            }
             currentRepository = newRepository;
 
             showAlert(Alert.AlertType.INFORMATION, "Success", "Repository '" + repositoryName + "' created successfully.");
@@ -227,11 +299,17 @@ public class MainApp extends Application {
         }
     }
 
-
     private void updateTable() {
-        table.getItems().clear();
-        if (currentRepository != null) {
-            table.getItems().addAll(currentRepository.getAll());
+        if (expenseTab.isSelected()) {
+            if (currentRepository != null) {
+                expenseTable.getItems().clear();
+                expenseTable.getItems().addAll((List<Expense>) currentRepository.getAll());
+            }
+        } else if (taskTab.isSelected()) {
+            if (currentRepository != null) {
+                taskTable.getItems().clear();
+                taskTable.getItems().addAll((List<Task>) currentRepository.getAll());
+            }
         }
     }
 
@@ -251,7 +329,11 @@ public class MainApp extends Application {
                             GenericRepository<?> repository = new GenericRepository<>(file.getAbsolutePath(), repositoryType);
                             repository.load();
                             repositories.add(repository);
-                            repositoryComboBox.getItems().add(repository);
+                            if (repositoryType.equals(Expense.class)) {
+                                expenseRepositoryComboBox.getItems().add(repository);
+                            } else if (repositoryType.equals(Task.class)) {
+                                taskRepositoryComboBox.getItems().add(repository);
+                            }
                         } catch (Exception ex) {
                             System.err.println("Failed to load repository: " + file.getName() + " Error: " + ex.getMessage());
                         }
@@ -259,19 +341,84 @@ public class MainApp extends Application {
                 }
             }
         }
-
         if (!repositories.isEmpty()) {
-            repositoryComboBox.getSelectionModel().select(0);
+            if (!expenseRepositoryComboBox.getItems().isEmpty()) {
+                expenseRepositoryComboBox.getSelectionModel().selectFirst();
+            }
+            if (!taskRepositoryComboBox.getItems().isEmpty()) {
+                taskRepositoryComboBox.getSelectionModel().selectFirst();
+            }
             currentRepository = repositories.getFirst();
             updateTable();
         }
     }
 
+    private GenericRepository<?> getRepositoryForTab(Class<?> cl) {
+        return repositories.stream()
+                .filter(repo -> repo.getType().equals(cl))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Button createSaveButton() {
+        Button saveButton = new Button("Save");
+        saveButton.setOnAction(event -> {
+            try {
+                if (currentRepository == null) {
+                    showAlert(Alert.AlertType.WARNING, "No Repository", "No repository selected. Please select or create a repository first.");
+                }
+                if (!currentRepository.isDataChanged()) {
+                    return;
+                }
+                currentRepository.save();
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Data saved successfully.");
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to save data: " + e.getMessage());
+            }
+        });
+        return saveButton;
+    }
+
+    private Button createDeleteButton() {
+        Button deleteButton = new Button("Delete Selected");
+        deleteButton.setOnAction(event -> {
+            TableView<?> currentTable = null;
+
+            if (expenseTab.isSelected()) {
+                currentTable = expenseTable;
+            } else if (taskTab.isSelected()) {
+                currentTable = taskTable;
+            }
+
+            if (currentTable != null && currentRepository != null) {
+                Object selectedItem = currentTable.getSelectionModel().getSelectedItem();
+                if (selectedItem != null) {
+                    if (selectedItem instanceof Expense) {
+                        Expense selectedExpense = (Expense) selectedItem;
+                        ((ExpenseRepository) currentRepository).delete(selectedExpense);
+                        currentTable.getItems().remove(selectedItem);
+                    } else if (selectedItem instanceof Task) {
+                        Task selectedTask = (Task) selectedItem;
+                        ((TaskRepository) currentRepository).delete(selectedTask);
+                        currentTable.getItems().remove(selectedItem);
+                    }
+                    showAlert(Alert.AlertType.INFORMATION, "Success", "Data deleted successfully.");
+                } else {
+                    showAlert(Alert.AlertType.WARNING, "Warning", "No data selected.");
+                }
+            } else {
+                showAlert(Alert.AlertType.WARNING, "Warning", "No repository selected.");
+            }
+        });
+        return deleteButton;
+    }
+
     private String[] getAllowedCategories(Class<?> cl) {
         try {
-            Field field = cl.getDeclaredField("category");
-            if (field.isAnnotationPresent(ValidCategory.class)) {
-                return field.getAnnotation(ValidCategory.class).allowedCategories();
+            for (Field field : cl.getDeclaredFields()) {
+                if (field.isAnnotationPresent(ValidCategory.class)) {
+                    return field.getAnnotation(ValidCategory.class).allowedCategories();
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();

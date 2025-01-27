@@ -106,4 +106,8 @@ public class GenericRepository<T> implements Repository<T> {
         }
         return fileName;
     }
+
+    public Object getType() {
+        return classType;
+    }
 }
