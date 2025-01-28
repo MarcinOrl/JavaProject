@@ -15,7 +15,6 @@ public class Task {
     @NotNull(message = "Due date cannot be null")
     private LocalDate dueDate;
 
-    @MinValue(value = 1, message = "Priority must be greater than 0")
     @ValidCategory(allowedCategories = {"1", "2", "3", "4", "5"}, message = "Invalid priority.")
     private String priority;
 
@@ -69,7 +68,7 @@ public class Task {
 
     @Override
     public String toString() {
-        return String.format("Task{title='%s', dueDate=%s, priority=%d, completed=%s}",
+        return String.format("Task{title='%s', dueDate=%s, priority=%s, completed=%s}",
                 title, dueDate, priority, completed);
     }
 }

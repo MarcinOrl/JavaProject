@@ -9,9 +9,7 @@ import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import main.java.com.expenseTracker.model.Expense;
 import main.java.com.expenseTracker.model.Task;
-import main.java.com.expenseTracker.repository.ExpenseRepository;
 import main.java.com.expenseTracker.repository.GenericRepository;
-import main.java.com.expenseTracker.repository.TaskRepository;
 import main.java.com.expenseTracker.service.Validator;
 import main.java.com.expenseTracker.util.ValidCategory;
 
@@ -20,7 +18,6 @@ import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MainApp extends Application {
     private List<GenericRepository<?>> repositories = new ArrayList<>();
@@ -30,6 +27,8 @@ public class MainApp extends Application {
     private ComboBox<GenericRepository<?>> expenseRepositoryComboBox;
     private ComboBox<GenericRepository<?>> taskRepositoryComboBox;
     private ObjectMapper objectMapper = new ObjectMapper();
+    private Tab expenseTab;
+    private Tab taskTab;
 
     public static void main(String[] args) {
         launch(args);
@@ -40,20 +39,22 @@ public class MainApp extends Application {
         // Layout glowny
         TabPane tabPane = new TabPane();
         expenseTab = createExpenseTab();
+        expenseTab.setClosable(false);
         taskTab = createTaskTab();
+        taskTab.setClosable(false);
         tabPane.getTabs().addAll(expenseTab, taskTab);
 
-//        tabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab) -> {
-//            if (newTab == expenseTab) {
-//                filterRepositoriesForExpense();
-//                currentRepository = getRepositoryForTab(Expense.class);
-//                updateTable();
-//            } else if (newTab == taskTab) {
-//                filterRepositoriesForTask();
-//                currentRepository = getRepositoryForTab(Task.class);
-//                updateTable();
-//            }
-//        });
+        tabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab) -> {
+            if (newTab == expenseTab) {
+                if (currentRepository != getRepositoryForTab(Expense.class)) {
+                    currentRepository = getRepositoryForTab(Expense.class);
+                }
+            } else if (newTab == taskTab) {
+                if (currentRepository != getRepositoryForTab(Task.class)) {
+                    currentRepository = getRepositoryForTab(Task.class);
+                }
+            }
+        });
 
         loadRepositories();
 
@@ -161,8 +162,6 @@ public class MainApp extends Application {
 
                 nameField.clear();
                 amountField.clear();
-                categoryComboBox.getSelectionModel().clearSelection();
-                datePicker.setValue(LocalDate.now());
             } catch (NumberFormatException ex) {
                 showAlert(Alert.AlertType.ERROR, "Invalid Input", "Amount must be a valid number.");
             } catch (IllegalArgumentException ex) {
@@ -217,6 +216,7 @@ public class MainApp extends Application {
         TableColumn<Task, String> priorityColumn = new TableColumn<>("Priority");
         priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
         TableColumn<Task, Boolean> completedColumn = new TableColumn<>("Completed");
+        completedColumn.setCellValueFactory(new PropertyValueFactory<>("completed"));
         taskTable.getColumns().addAll(titleColumn, descriptionColumn, dueDateColumn, priorityColumn, completedColumn);
 
         // Formularz
@@ -247,9 +247,6 @@ public class MainApp extends Application {
 
                 titleField.clear();
                 descriptionField.clear();
-                priorityComboBox.getSelectionModel().clearSelection();
-                dueDatePicker.setValue(LocalDate.now());
-                completedCheckBox.setSelected(false);
             } catch (IllegalArgumentException ex) {
                 showAlert(Alert.AlertType.ERROR, "Validation Error", ex.getMessage());
             } catch (Exception ex) {
@@ -266,9 +263,6 @@ public class MainApp extends Application {
 
         return new Tab("Tasks", taskLayout);
     }
-
-    private Tab expenseTab;
-    private Tab taskTab;
 
     private <T> void createRepository(String repositoryName, Class<T> repositoryType) {
         if (repositoryName == null || repositoryName.trim().isEmpty()) {
@@ -300,13 +294,11 @@ public class MainApp extends Application {
     }
 
     private void updateTable() {
-        if (expenseTab.isSelected()) {
-            if (currentRepository != null) {
+        if (currentRepository != null) {
+            if (expenseTab.isSelected()) {
                 expenseTable.getItems().clear();
                 expenseTable.getItems().addAll((List<Expense>) currentRepository.getAll());
-            }
-        } else if (taskTab.isSelected()) {
-            if (currentRepository != null) {
+            } else if (taskTab.isSelected()) {
                 taskTable.getItems().clear();
                 taskTable.getItems().addAll((List<Task>) currentRepository.getAll());
             }
@@ -341,16 +333,6 @@ public class MainApp extends Application {
                 }
             }
         }
-        if (!repositories.isEmpty()) {
-            if (!expenseRepositoryComboBox.getItems().isEmpty()) {
-                expenseRepositoryComboBox.getSelectionModel().selectFirst();
-            }
-            if (!taskRepositoryComboBox.getItems().isEmpty()) {
-                taskRepositoryComboBox.getSelectionModel().selectFirst();
-            }
-            currentRepository = repositories.getFirst();
-            updateTable();
-        }
     }
 
     private GenericRepository<?> getRepositoryForTab(Class<?> cl) {
@@ -382,32 +364,36 @@ public class MainApp extends Application {
     private Button createDeleteButton() {
         Button deleteButton = new Button("Delete Selected");
         deleteButton.setOnAction(event -> {
-            TableView<?> currentTable = null;
+            Object selectedItem = null; // Ogólny typ dla wybranego elementu
 
             if (expenseTab.isSelected()) {
-                currentTable = expenseTable;
+                selectedItem = expenseTable.getSelectionModel().getSelectedItem();
             } else if (taskTab.isSelected()) {
-                currentTable = taskTable;
+                selectedItem = taskTable.getSelectionModel().getSelectedItem();
             }
 
-            if (currentTable != null && currentRepository != null) {
-                Object selectedItem = currentTable.getSelectionModel().getSelectedItem();
-                if (selectedItem != null) {
-                    if (selectedItem instanceof Expense) {
-                        Expense selectedExpense = (Expense) selectedItem;
-                        ((ExpenseRepository) currentRepository).delete(selectedExpense);
-                        currentTable.getItems().remove(selectedItem);
-                    } else if (selectedItem instanceof Task) {
-                        Task selectedTask = (Task) selectedItem;
-                        ((TaskRepository) currentRepository).delete(selectedTask);
-                        currentTable.getItems().remove(selectedItem);
+            if (selectedItem != null && currentRepository != null) {
+                try {
+                    // Rzutowanie do właściwego typu w repozytorium
+                    @SuppressWarnings("unchecked")
+                    GenericRepository<Object> repo = (GenericRepository<Object>) currentRepository;
+                    repo.delete(selectedItem);
+
+                    if (expenseTab.isSelected()) {
+                        expenseTable.getItems().remove(selectedItem);
+                    } else if (taskTab.isSelected()) {
+                        taskTable.getItems().remove(selectedItem);
                     }
-                    showAlert(Alert.AlertType.INFORMATION, "Success", "Data deleted successfully.");
-                } else {
-                    showAlert(Alert.AlertType.WARNING, "Warning", "No data selected.");
+
+                    showAlert(Alert.AlertType.INFORMATION, "Success", "Item deleted successfully.");
+                } catch (Exception ex) {
+                    showAlert(Alert.AlertType.ERROR, "Error", "Failed to delete item: " + ex.getMessage());
                 }
             } else {
-                showAlert(Alert.AlertType.WARNING, "Warning", "No repository selected.");
+                String message = (selectedItem == null)
+                        ? "Please select an item to delete."
+                        : "No repository selected.";
+                showAlert(Alert.AlertType.WARNING, "No Selection", message);
             }
         });
         return deleteButton;
