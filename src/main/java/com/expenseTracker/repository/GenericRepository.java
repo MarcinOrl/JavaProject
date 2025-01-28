@@ -83,6 +83,18 @@ public class GenericRepository<T> implements Repository<T> {
     }
 
     @Override
+    public void update(T item) {
+        List<T> items = getAll();
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).equals(item)) {
+                items.set(i, item);
+                isDataChanged = true;
+                return;
+            }
+        }
+    }
+
+    @Override
     public void load() {
         try {
             File file = new File(filePath);

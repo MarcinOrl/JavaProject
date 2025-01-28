@@ -173,7 +173,7 @@ public class MainApp extends Application {
 
         HBox repositoryControls = new HBox(10, expenseRepositoryComboBox, repositoryNameField, createRepositoryButton);
         VBox form = new VBox(10, nameField, amountField, categoryComboBox, datePicker, addButton);
-        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton());
+        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton(), createEditButton());
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         // Dodanie do layoutu
@@ -256,7 +256,7 @@ public class MainApp extends Application {
 
         HBox repositoryControls = new HBox(10, taskRepositoryComboBox, repositoryNameField, createRepositoryButton);
         VBox form = new VBox(10, titleField, descriptionField, dueDatePicker, priorityComboBox, completedCheckBox, addButton);
-        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton());
+        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton(), createEditButton());
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         taskLayout.getChildren().addAll(repositoryControls, taskTable, form, buttonBox);
@@ -364,7 +364,7 @@ public class MainApp extends Application {
     private Button createDeleteButton() {
         Button deleteButton = new Button("Delete Selected");
         deleteButton.setOnAction(event -> {
-            Object selectedItem = null; // Ogólny typ dla wybranego elementu
+            Object selectedItem = null;
 
             if (expenseTab.isSelected()) {
                 selectedItem = expenseTable.getSelectionModel().getSelectedItem();
@@ -374,15 +374,17 @@ public class MainApp extends Application {
 
             if (selectedItem != null && currentRepository != null) {
                 try {
-                    // Rzutowanie do właściwego typu w repozytorium
-                    @SuppressWarnings("unchecked")
                     GenericRepository<Object> repo = (GenericRepository<Object>) currentRepository;
                     repo.delete(selectedItem);
 
                     if (expenseTab.isSelected()) {
-                        expenseTable.getItems().remove(selectedItem);
+                        if (selectedItem instanceof Expense) {
+                            expenseTable.getItems().remove(selectedItem);
+                        }
                     } else if (taskTab.isSelected()) {
-                        taskTable.getItems().remove(selectedItem);
+                        if (selectedItem instanceof Task) {
+                            taskTable.getItems().remove(selectedItem);
+                        }
                     }
 
                     showAlert(Alert.AlertType.INFORMATION, "Success", "Item deleted successfully.");
@@ -399,6 +401,126 @@ public class MainApp extends Application {
         return deleteButton;
     }
 
+    private Button createEditButton() {
+        Button editButton = new Button("Edit Selected");
+        editButton.setOnAction(event -> {
+            Object selectedItem = null;
+
+            if (expenseTab.isSelected()) {
+                selectedItem = expenseTable.getSelectionModel().getSelectedItem();
+            } else if (taskTab.isSelected()) {
+                selectedItem = taskTable.getSelectionModel().getSelectedItem();
+            }
+
+            if (selectedItem != null) {
+                if (selectedItem instanceof Expense) {
+                    editExpense((Expense) selectedItem);
+                } else if (selectedItem instanceof Task) {
+                    editTask((Task) selectedItem);
+                }
+            } else {
+                showAlert(Alert.AlertType.WARNING, "No Selection", "Please select an item to edit.");
+            }
+        });
+        return editButton;
+    }
+
+    private void editExpense(Expense expense) {
+        TextField nameField = new TextField(expense.getName());
+        TextField amountField = new TextField(String.valueOf(expense.getAmount()));
+        ComboBox<String> categoryComboBox = new ComboBox<>();
+        categoryComboBox.getItems().addAll(getAllowedCategories(Expense.class));
+        categoryComboBox.setValue(expense.getCategory());
+        DatePicker datePicker = new DatePicker(expense.getDate());
+
+        Button saveButton = new Button("Save Changes");
+        saveButton.setOnAction(event -> {
+            try {
+                String name = nameField.getText();
+                double amount = Double.parseDouble(amountField.getText());
+                amount = Math.round(amount * 100) / 100.0;
+                String category = categoryComboBox.getValue();
+                LocalDate date = datePicker.getValue();
+
+                expense.setName(name);
+                expense.setAmount(amount);
+                expense.setCategory(category);
+                expense.setDate(date);
+
+                Validator.validate(expense);
+                ((GenericRepository<Expense>) currentRepository).update(expense);
+                updateTable();
+
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Expense updated successfully.");
+                Stage editStage = (Stage) saveButton.getScene().getWindow();
+                editStage.close();
+            } catch (NumberFormatException ex) {
+                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Amount must be a valid number.");
+            } catch (IllegalArgumentException ex) {
+                showAlert(Alert.AlertType.ERROR, "Validation Error", ex.getMessage());
+            } catch (Exception ex) {
+                showAlert(Alert.AlertType.ERROR, "Error", "An unexpected error occurred: " + ex.getMessage());
+            }
+        });
+
+        VBox form = new VBox(10, nameField, amountField, categoryComboBox, datePicker, saveButton);
+        form.setStyle("-fx-padding: 20;");
+        Scene editScene = new Scene(form, 300, 250);
+        Stage editStage = new Stage();
+        editStage.setTitle("Edit Expense");
+        editStage.setScene(editScene);
+        editStage.show();
+    }
+
+    private void editTask(Task task) {
+        TextField titleField = new TextField(task.getTitle());
+        TextField descriptionField = new TextField(task.getDescription());
+        DatePicker dueDatePicker = new DatePicker(task.getDueDate());
+        ComboBox<String> priorityComboBox = new ComboBox<>();
+        priorityComboBox.getItems().addAll(getAllowedCategories(Task.class));
+        priorityComboBox.setValue(task.getPriority());
+        CheckBox completedCheckBox = new CheckBox("Completed");
+        completedCheckBox.setSelected(task.isCompleted());
+
+        Button saveButton = new Button("Save Changes");
+        saveButton.setOnAction(event -> {
+            try {
+                String title = titleField.getText();
+                String description = descriptionField.getText();
+                LocalDate dueDate = dueDatePicker.getValue();
+                String priority = priorityComboBox.getValue();
+                boolean completed = completedCheckBox.isSelected();
+
+                task.setTitle(title);
+                task.setDescription(description);
+                task.setDueDate(dueDate);
+                task.setPriority(priority);
+                task.setCompleted(completed);
+
+                Validator.validate(task);
+                ((GenericRepository<Task>) currentRepository).update(task);
+                updateTable();
+
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Task updated successfully.");
+                Stage editStage = (Stage) saveButton.getScene().getWindow();
+                editStage.close();
+            } catch (IllegalArgumentException ex) {
+                showAlert(Alert.AlertType.ERROR, "Validation Error", ex.getMessage());
+            } catch (Exception ex) {
+                showAlert(Alert.AlertType.ERROR, "Error", "An unexpected error occurred: " + ex.getMessage());
+            }
+        });
+
+        VBox form = new VBox(10, titleField, descriptionField, dueDatePicker, priorityComboBox, completedCheckBox, saveButton);
+        form.setStyle("-fx-padding: 20;");
+        Scene editScene = new Scene(form, 300, 250);
+        Stage editStage = new Stage();
+        editStage.setTitle("Edit Task");
+        editStage.setScene(editScene);
+        editStage.show();
+    }
+
+
     private String[] getAllowedCategories(Class<?> cl) {
         try {
             for (Field field : cl.getDeclaredFields()) {
@@ -407,7 +529,7 @@ public class MainApp extends Application {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "Failed to get allowed categories: " + e.getMessage());
         }
         return new String[0];
     }

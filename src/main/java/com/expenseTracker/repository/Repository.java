@@ -8,5 +8,6 @@ public interface Repository<T> {
     void delete(T item);
     void clear();
     void save();
+    void update(T item);
     void load();
 }
