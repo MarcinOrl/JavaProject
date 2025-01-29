@@ -12,6 +12,7 @@ import main.java.com.expenseTracker.model.Task;
 import main.java.com.expenseTracker.repository.GenericRepository;
 import main.java.com.expenseTracker.service.Validator;
 import main.java.com.expenseTracker.util.ValidCategory;
+import main.java.com.expenseTracker.view.StatisticsView;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -171,9 +172,19 @@ public class MainApp extends Application {
             }
         });
 
+        Button statsButton = new Button("Statistics");
+        statsButton.setOnAction(e -> {
+            if (expenseRepositoryComboBox.getValue() == null) {
+                showAlert(Alert.AlertType.WARNING, "No repository", "No repository selected.");
+                return;
+            }
+            StatisticsView<?> statsView = new StatisticsView<>(currentRepository);
+            statsView.showStatisticsWindow();
+        });
+
         HBox repositoryControls = new HBox(10, expenseRepositoryComboBox, repositoryNameField, createRepositoryButton);
         VBox form = new VBox(10, nameField, amountField, categoryComboBox, datePicker, addButton);
-        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton(), createEditButton());
+        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton(), createEditButton(), statsButton);
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         // Dodanie do layoutu
@@ -254,9 +265,19 @@ public class MainApp extends Application {
             }
         });
 
+        Button statsButton = new Button("Statistics");
+        statsButton.setOnAction(e -> {
+            if (taskRepositoryComboBox.getValue() == null) {
+                showAlert(Alert.AlertType.WARNING, "No repository", "No repository selected.");
+                return;
+            }
+            StatisticsView<?> statsView = new StatisticsView<>(currentRepository);
+            statsView.showStatisticsWindow();
+        });
+
         HBox repositoryControls = new HBox(10, taskRepositoryComboBox, repositoryNameField, createRepositoryButton);
         VBox form = new VBox(10, titleField, descriptionField, dueDatePicker, priorityComboBox, completedCheckBox, addButton);
-        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton(), createEditButton());
+        HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton(), createEditButton(), statsButton);
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
         taskLayout.getChildren().addAll(repositoryControls, taskTable, form, buttonBox);
