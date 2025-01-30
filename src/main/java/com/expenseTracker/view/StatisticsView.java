@@ -19,6 +19,7 @@ import main.java.com.expenseTracker.service.TaskService;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -48,7 +49,7 @@ public class StatisticsView<T> {
                         createMonthlyBarChart(expenseService),
                         createYearlyBarChart(expenseService)
                 );
-                Scene scene = new Scene(root, 600, 900);
+                Scene scene = new Scene(root, 600, 780);
                 stage.setScene(scene);
             } else if (currentRepository.getType() == Task.class) {
                 TaskService taskService = new TaskService(currentRepository);
@@ -89,6 +90,9 @@ public class StatisticsView<T> {
     private BarChart<String, Number> createMonthlyBarChart(ExpenseService expenseService) {
         Map<YearMonth, Double> monthlyExpenses = expenseService.getMonthlyExpenses();
 
+        List<Map.Entry<YearMonth, Double>> sortedEntries = new ArrayList<>(monthlyExpenses.entrySet());
+        sortedEntries.sort(Map.Entry.comparingByKey());
+
         CategoryAxis xAxis = new CategoryAxis();
         xAxis.setLabel("Month");
 
@@ -101,8 +105,8 @@ public class StatisticsView<T> {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         series.setName("Expenses");
 
-        monthlyExpenses.forEach((month, amount) ->
-                series.getData().add(new XYChart.Data<>(month.toString(), amount))
+        sortedEntries.forEach(entry ->
+                series.getData().add(new XYChart.Data<>(entry.getKey().toString(), entry.getValue()))
         );
 
         barChart.getData().add(series);
