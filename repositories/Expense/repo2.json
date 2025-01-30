@@ -1,1 +1,12 @@
-[{"name":"Phone","amount":1200.0,"category":"Electronics","date":[2025,1,1]}]
+[
+  {"name":"Wireless Earbuds","amount":120.0,"category":"Electronics","date":[2025,1,30]},
+  {"name":"Museum Entry","amount":25.0,"category":"Entertainment","date":[2025,1,31]},
+  {"name":"Bus Ticket","amount":8.0,"category":"Transport","date":[2025,2,1]},
+  {"name":"Gaming Console","amount":400.0,"category":"Electronics","date":[2025,2,3]},
+  {"name":"Cinema Tickets","amount":35.0,"category":"Entertainment","date":[2025,2,4]},
+  {"name":"Airport Taxi","amount":40.0,"category":"Transport","date":[2025,2,5]},
+  {"name":"Pizza","amount":15.0,"category":"Food & Drinks","date":[2025,2,6]},
+  {"name":"Laptop","amount":800.0,"category":"Electronics","date":[2025,2,8]},
+  {"name":"Concert","amount":50.0,"category":"Entertainment","date":[2025,2,9]},
+  {"name":"Gasoline","amount":30.0,"category":"Transport","date":[2025,2,11]}
+]

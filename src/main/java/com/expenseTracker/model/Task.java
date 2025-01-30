@@ -1,6 +1,5 @@
 package main.java.com.expenseTracker.model;
 
-import main.java.com.expenseTracker.util.MinValue;
 import main.java.com.expenseTracker.util.NotNull;
 import main.java.com.expenseTracker.util.ValidCategory;
 

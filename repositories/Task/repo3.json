@@ -1,0 +1,11 @@
+[
+  {"title":"Buy groceries","description":"Purchase milk, bread, and eggs","dueDate":[2025,1,30],"priority":"2","completed":false},
+  {"title":"Team meeting","description":"Online conference with the team","dueDate":[2025,1,31],"priority":"3","completed":false},
+  {"title":"Coding session","description":"Work on the coding project","dueDate":[2025,2,1],"priority":"4","completed":false},
+  {"title":"Email response","description":"Reply to the client’s email","dueDate":[2025,2,2],"priority":"1","completed":true},
+  {"title":"Research task","description":"Research for the new feature","dueDate":[2025,2,3],"priority":"3","completed":false},
+  {"title":"Project meeting","description":"Attend the project meeting at work","dueDate":[2025,2,2],"priority":"4","completed":false},
+  {"title":"Design review","description":"Review the design document for the app","dueDate":[2025,2,3],"priority":"3","completed":false},
+  {"title":"Client call","description":"Discuss project updates with the client","dueDate":[2025,2,4],"priority":"2","completed":false},
+  {"title":"Plan vacation","description":"Research destinations for the upcoming vacation","dueDate":[2025,2,5],"priority":"5","completed":false}
+]

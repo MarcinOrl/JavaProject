@@ -21,13 +21,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainApp extends Application {
-    private List<GenericRepository<?>> repositories = new ArrayList<>();
+    private final List<GenericRepository<?>> repositories = new ArrayList<>();
     private GenericRepository<?> currentRepository;
     private TableView<Expense> expenseTable;
     private TableView<Task> taskTable;
     private ComboBox<GenericRepository<?>> expenseRepositoryComboBox;
     private ComboBox<GenericRepository<?>> taskRepositoryComboBox;
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private Tab expenseTab;
     private Tab taskTab;
 
@@ -37,7 +37,6 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        // Layout glowny
         TabPane tabPane = new TabPane();
         expenseTab = createExpenseTab();
         expenseTab.setClosable(false);
@@ -63,7 +62,6 @@ public class MainApp extends Application {
         primaryStage.setScene(scene);
         primaryStage.setTitle("Expense and Task Tracker");
 
-        // Event zamykania aplikacji
         primaryStage.setOnCloseRequest(event -> {
             boolean unsavedChanges = repositories.stream().anyMatch(GenericRepository::isDataChanged);
 
@@ -100,13 +98,10 @@ public class MainApp extends Application {
         primaryStage.show();
     }
 
-    // Zakladka Expense
     private Tab createExpenseTab() {
-        // Layout
         VBox expenseLayout = new VBox(10);
         expenseLayout.setStyle("-fx-padding: 20;");
 
-        // Wybor repozytorium
         expenseRepositoryComboBox = new ComboBox<>();
         expenseRepositoryComboBox.setPromptText("Choose repository");
         expenseRepositoryComboBox.setOnAction(event -> {
@@ -114,7 +109,6 @@ public class MainApp extends Application {
             updateTable();
         });
 
-        // Tworzenie nowych repozytoriow
         TextField repositoryNameField = new TextField();
         repositoryNameField.setPromptText("Enter repository name");
 
@@ -125,7 +119,6 @@ public class MainApp extends Application {
             repositoryNameField.clear();
         });
 
-        // Tabela wydatkow
         expenseTable = new TableView<>();
         TableColumn<Expense, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -137,7 +130,6 @@ public class MainApp extends Application {
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         expenseTable.getColumns().addAll(nameColumn, amountColumn, categoryColumn, dateColumn);
 
-        // Formularz
         TextField nameField = new TextField();
         nameField.setPromptText("Name");
         TextField amountField = new TextField();
@@ -178,6 +170,10 @@ public class MainApp extends Application {
                 showAlert(Alert.AlertType.WARNING, "No repository", "No repository selected.");
                 return;
             }
+            if (currentRepository.getAll().isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "No data", "No expenses available in the selected repository.");
+                return;
+            }
             StatisticsView<?> statsView = new StatisticsView<>(currentRepository);
             statsView.showStatisticsWindow();
         });
@@ -187,7 +183,6 @@ public class MainApp extends Application {
         HBox buttonBox = new HBox(10, createSaveButton(), createDeleteButton(), createEditButton(), statsButton);
         buttonBox.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
-        // Dodanie do layoutu
         expenseLayout.getChildren().addAll(repositoryControls, expenseTable, form, buttonBox);
 
         return new Tab("Expenses", expenseLayout);
@@ -197,7 +192,6 @@ public class MainApp extends Application {
         VBox taskLayout = new VBox(10);
         taskLayout.setStyle("-fx-padding: 20;");
 
-        // Wybor repozytorium
         taskRepositoryComboBox = new ComboBox<>();
         taskRepositoryComboBox.setPromptText("Choose repository");
         taskRepositoryComboBox.setOnAction(event -> {
@@ -205,7 +199,6 @@ public class MainApp extends Application {
             updateTable();
         });
 
-        // Tworzenie nowych repozytoriow
         TextField repositoryNameField = new TextField();
         repositoryNameField.setPromptText("Enter repository name");
 
@@ -216,7 +209,6 @@ public class MainApp extends Application {
             repositoryNameField.clear();
         });
 
-        // Tabela zadan
         taskTable = new TableView<>();
         TableColumn<Task, String> titleColumn = new TableColumn<>("Title");
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
@@ -230,7 +222,6 @@ public class MainApp extends Application {
         completedColumn.setCellValueFactory(new PropertyValueFactory<>("completed"));
         taskTable.getColumns().addAll(titleColumn, descriptionColumn, dueDateColumn, priorityColumn, completedColumn);
 
-        // Formularz
         TextField titleField = new TextField();
         titleField.setPromptText("Title");
         TextField descriptionField = new TextField();
@@ -265,10 +256,14 @@ public class MainApp extends Application {
             }
         });
 
-        Button statsButton = new Button("Statistics");
+        Button statsButton = new Button("Today Tasks and Statistics");
         statsButton.setOnAction(e -> {
             if (taskRepositoryComboBox.getValue() == null) {
                 showAlert(Alert.AlertType.WARNING, "No repository", "No repository selected.");
+                return;
+            }
+            if (currentRepository.getAll().isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "No data", "No tasks available in the selected repository.");
                 return;
             }
             StatisticsView<?> statsView = new StatisticsView<>(currentRepository);
@@ -540,7 +535,6 @@ public class MainApp extends Application {
         editStage.setScene(editScene);
         editStage.show();
     }
-
 
     private String[] getAllowedCategories(Class<?> cl) {
         try {

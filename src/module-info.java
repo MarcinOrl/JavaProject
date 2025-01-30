@@ -5,6 +5,7 @@ module ExpenseTracker {
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.datatype.jsr310;
+    requires java.xml;
 
     opens main.java.com.expenseTracker.model to com.fasterxml.jackson.databind;
 
